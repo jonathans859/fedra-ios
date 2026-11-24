@@ -1,8 +1,9 @@
 # Fedra for iOS (working name)
 
-A VoiceOver-first Mastodon client for iPhone and iPad. It reuses the Rust core of
+A VoiceOver-first Mastodon client for iPhone and iPad, written in Swift. It's inspired by
 [Fedra](https://github.com/trypsynth/fedra), an accessible Mastodon client for Windows by
-Quin Gillespie and Aryan Choudhary, and puts a native SwiftUI interface on top.
+Quin Gillespie and Aryan Choudhary. It follows Fedra's design (post templates, sound
+cues, keyboard-first use) and stays compatible with its template syntax.
 
 This is an independent project. It's not affiliated with or endorsed by the Fedra authors.
 
@@ -16,20 +17,18 @@ Early development. Tasks and milestones live in
 
 | Path | What it is |
 |---|---|
-| `upstream/` | Submodule: [jonathans859/fedra](https://github.com/jonathans859/fedra), branch `ios-core` (a fork of upstream with a UI-free `fedra-core` crate) |
-| `rust/fedra-ffi/` | UniFFI bridge from the core to Swift (from M2) |
-| `FedraKit/` | Swift package. `FedraModel` is platform-neutral and tested on Linux and Windows |
+| `FedraKit/` | Swift package, platform-neutral. `FedraAPI` is the Mastodon client, `FedraModel` holds text, templates and view models. Tested on Linux and Windows |
 | `App/` | The SwiftUI app. `project.yml` generates the Xcode project with XcodeGen |
 
 ## Building
 
 ```sh
-git clone --recurse-submodules https://github.com/jonathans859/fedra-ios
+git clone https://github.com/jonathans859/fedra-ios
 cd FedraKit && swift test      # works on macOS, Linux and Windows
 xcodegen generate              # macOS only, then open Fedra.xcodeproj
 ```
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Includes code from Fedra, (c) 2026 Quin Gillespie and Aryan
-Choudhary, under the MIT License.
+MIT, see [LICENSE](LICENSE). Default templates and text-formatting rules are adapted from
+Fedra, (c) 2026 Quin Gillespie and Aryan Choudhary, under the MIT License.

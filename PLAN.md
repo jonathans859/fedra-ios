@@ -5,80 +5,74 @@ https://github.com/jonathans859/fedra-ios/milestones. This file holds the roadma
 the decisions and the background. The checkboxes below are the source the issues
 were created from; GitHub is authoritative.
 
-Status: **M0 done except the App Store Connect record; M1 started.** Upstream analysed at `trypsynth/fedra@172615b` (v0.9.1, 2026-11-22).
+Status: **M0 done except the name and the App Store Connect record. Next: M1.**
 
 ## Decisions made (2026-11-24)
 
 | Topic | Decision |
 |---|---|
-| Core source | Fork upstream, extract a UI-free `fedra-core` crate in the fork, use it as a git submodule, rebase on upstream regularly |
-| Relationship | Own independent app built on MIT code. Upstream not contacted |
-| App name | Decide later. Use a working name until then |
+| Core source | **Our own Swift code.** Fedra (Windows) is design inspiration only. No Rust, no fork (changed 2026-11-24) |
+| Relationship | Independent app inspired by Fedra (MIT). Upstream not contacted |
+| App name | Open: decide before the App Store Connect record. Working name "Fedra" until then |
 | Build | Windows only + GitHub Actions macOS runners, testing on device via TestFlight |
 | Platforms | iPhone + iPad, iOS 18+ |
-| First version | A tiny read-only app that proves the Rust↔Swift bridge end to end |
+| First version | A tiny read-only app (sign in, read the home timeline) |
 | Fedra features | Keep post templates, sound cues and keyboard/quick-action keys, **and** offer iOS-native patterns (rotor, custom actions, haptics) |
 | Push | Wanted. User hosts the relay container (M8) |
 | Language | English only |
 | Bundle ID | `com.jonathan859.fedra` |
-| GitHub | `jonathans859/fedra-ios`, fork `jonathans859/fedra` (branch `ios-core`) |
+| GitHub | `jonathans859/fedra-ios` |
+| Templates | Same syntax, variables and defaults as Fedra for Windows, so templates can be copied between the two |
 | Tasks | GitHub Issues + Milestones |
-| Indentation | Tabs (matches upstream) |
+| Indentation | Tabs |
 
-## What upstream gives us and what has to change
+## Fedra (Windows) as the reference
 
-Upstream is **one binary crate**. No library exists yet. The dependency map (2026-11-24,
-`172615b`) gives this split:
+We take the **design** from upstream, not the code (decided 2026-11-24, after mapping
+the Rust code: it's one binary with the core tangled into the wx UI, and the bridge
+would cost two milestones before showing a single post). Things to carry over:
 
-| Goes into `fedra-core` | How |
+| From upstream | Use |
 |---|---|
-| `mastodon/*` (client + models), `html.rs`, `text.rs`, `template.rs`, `clock.rs` | move as-is |
-| `streaming.rs` | move. Replace the `UiWaker` (wxDragon) with a plain `Fn() + Send` callback that the app passes in |
-| Settings enums from `config.rs` (`TimestampFormat`, `DisplayNameEmojiMode`, `ContentWarningDisplay`, `SortOrder`, `TimelineFilter`) | move into `core::settings`. `config.rs` re-exports them, and `Config` with its hotkeys stays in the app |
-| `TimelineType` from `timeline.rs` | move. The rest of `timeline.rs` (timeline state, stream handles, find) stays in the app |
-| Request types from `network.rs` (`PostData`, `MediaUpload`, `PollData`, `RelationshipAction`, ...) | move. The `wx_utils` background queue stays in the app |
+| `doc/readme.md` (user manual) | feature reference, wording, default shortcuts |
+| `src/template.rs` + manual "Templates" | template syntax, variable names, the four default templates |
+| `src/html.rs`, `src/text.rs` | rules for turning post HTML into readable text, emoji handling in names |
+| `src/mastodon/*` | which endpoints and fields a full client needs |
+| `src/config.rs` | settings list (timestamp format, CW display, sort order, filters, ...) |
+| `sounds/` | contains only `boop.mp3` with no licence note, so **we make our own sounds** |
 
-| Stays in the Windows app | Why |
-|---|---|
-| `responses/*`, `read_position.rs`, `accounts.rs`, `notifications.rs` | app controller code: depends on `AppState`, `UiCommand`, `ui` |
-| `auth.rs` | browser + localhost listener. The OAuth calls themselves are already in `mastodon/client/auth.rs` (core); iOS uses `ASWebAuthenticationSession` |
-| `audio.rs`, `speech/*`, `ui/*`, `ui_wake.rs`, `main.rs` | UI / OS |
-
-**Minimal-diff technique:** `main.rs` replaces `mod mastodon;` with `use fedra_core::mastodon;`
-(same for the other moved modules), so every existing `crate::mastodon::...` path in the
-app keeps compiling unchanged. That keeps the fork's diff small and rebases cheap.
+Upstream reference commit: `trypsynth/fedra@172615b` (v0.9.1, 2026-11-22).
 
 ## Milestones
 
 ### M0 – Repository skeleton
-- [x] Fork `trypsynth/fedra` → `jonathans859/fedra`, branch `ios-core`
-- [x] Add the fork as submodule `upstream/`
-- [x] README with credit + LICENSE (MIT, keep upstream copyright alongside ours)
+- [x] README with credit + LICENSE (MIT, upstream copyright for ported logic)
 - [x] `.gitignore`, `.gitattributes`, `.editorconfig`
 - [x] `FedraKit` Swift package skeleton (`FedraModel`), `swift test` green on Windows
 - [x] `project.yml` (XcodeGen) with a placeholder SwiftUI app, bundle ID
 - [x] CI green: Linux `swift test` + macOS unsigned simulator build
+- [ ] Choose the public name before the App Store Connect record (the bundle ID can't change afterwards)
 - [ ] App Store Connect app record + TestFlight via apple-ci (needs you: create the app in App Store Connect)
 
-### M1 – Extract `fedra-core` (in the fork)
-- [ ] Workspace member `core/` (`fedra-core`), move the UI-free modules over
-- [ ] Remove `wx_utils` from `network.rs`, `wxdragon` from `auth.rs`, `live_region` from `responses/*`
-- [ ] Split `config.rs` into core data and Windows shortcuts
-- [ ] Windows app builds and behaves the same (`cargo clippy -D warnings`, `cargo test`)
-- [ ] Write down the rebase procedure in `upstream/IOS_CORE.md`
+### M1 – Swift Mastodon client (FedraAPI)
+- [ ] `HTTPTransport` protocol + URLSession implementation (FoundationNetworking on Linux/Windows) + fake transport for tests
+- [ ] Codable models: Status, Account, Notification, MediaAttachment, Poll, Mention, Tag, CustomEmoji, Instance
+- [ ] Endpoints for M3: verify credentials, home timeline, single status, context; `max_id`/`min_id` pagination via the `Link` header
+- [ ] OAuth calls: register app, build authorize URL, exchange code for token (the UI part comes in M3)
+- [ ] Typed errors (offline, unauthorised, rate limit, server error) with messages written for speech
+- [ ] JSON fixtures from a real instance, tests on Linux + Windows
 
-### M2 – Bridge (FFI + XCFramework)  ⚠ original research, no skill exists yet
-- [ ] `rust/fedra-ffi` with UniFFI (proc macros), async API, error enum
-- [ ] TLS on iOS: `rustls-native-certs` can't read the iOS trust store. Evaluate `rustls-platform-verifier` vs `webpki-roots`
-- [ ] Build targets `aarch64-apple-ios`, `aarch64-apple-ios-sim`, `x86_64-apple-ios-sim` → XCFramework
-- [ ] How CI builds Rust before Xcode (apple-ci has no pre-build hook). Options: (a) an Xcode run-script build phase calls cargo, (b) a self-contained workflow that copies apple-ci's steps, (c) prebuilt XCFramework as a release asset
-- [ ] Binary size check (upstream uses opt-level "z", LTO)
-- [ ] Afterwards: create the skill `rust-uniffi-ios` and commit it
+### M2 – Text and templates (FedraModel)
+- [ ] HTML to plain text for VoiceOver (paragraphs, line breaks, links, mentions, hashtags), following upstream's `html.rs` rules. Own small parser or SwiftSoup? Decide before starting
+- [ ] Template engine: Fedra-compatible subset (`{{ var }}`, `{% if %}…{% endif %}`). Falls back to `author: content` on a syntax error, like upstream
+- [ ] Template variables (author, username, content, relative_time, visibility, counts, media, poll, booster, quote_*, ...) built from a Status
+- [ ] Port the four default templates (post, boost, quote, favourite)
+- [ ] Settings enums: timestamp format, CW display, emoji in names, sort order
 
 ### M3 – Read-only MVP (first TestFlight build)
 - [ ] Sign-in: instance field → OAuth via `ASWebAuthenticationSession` → token in Keychain
 - [ ] Home timeline: a list where each post is one VoiceOver element, label from the default post template
-- [ ] Load more at the end, pull to refresh, keep the reading position (upstream `read_position`)
+- [ ] Load more at the end, pull to refresh, keep the reading position (port the idea of upstream `read_position`)
 - [ ] Post detail: full text, links, media descriptions, content warning
 - [ ] Error and empty states that make sense when spoken
 - [ ] VoiceOver walkthrough on device, Accessibility Inspector audit in CI
@@ -97,7 +91,7 @@ app keeps compiling unchanged. That keeps the fork's diff small and rebases chea
 
 ### M6 – Fedra features
 - [ ] Template editor (post/boost/quote/favourite) with preview, read by VoiceOver
-- [ ] Sound cues (upstream `sounds/`), each toggleable, mixing with VoiceOver via the audio session
+- [ ] Our own sound pack (upstream has no licensed sounds), each cue toggleable, mixing with VoiceOver via the audio session
 - [ ] Hardware keyboard shortcuts + quick-action keys, customisable
 - [ ] Haptics as an alternative to sounds
 
