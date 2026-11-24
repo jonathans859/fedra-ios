@@ -5,7 +5,7 @@ https://github.com/jonathans859/fedra-ios/milestones. This file holds the roadma
 the decisions and the background. The checkboxes below are the source the issues
 were created from; GitHub is authoritative.
 
-Status: **M0 in progress.** Upstream analysed at `trypsynth/fedra@172615b` (v0.9.1, 2026-11-22).
+Status: **M0 done except the App Store Connect record; M1 started.** Upstream analysed at `trypsynth/fedra@172615b` (v0.9.1, 2026-11-22).
 
 ## Decisions made (2026-11-24)
 
@@ -27,17 +27,26 @@ Status: **M0 in progress.** Upstream analysed at `trypsynth/fedra@172615b` (v0.9
 
 ## What upstream gives us and what has to change
 
-Upstream is **one binary crate**. No library exists yet. UI coupling found outside `src/ui/`:
+Upstream is **one binary crate**. No library exists yet. The dependency map (2026-11-24,
+`172615b`) gives this split:
 
-| Module | Coupling | Change in the fork |
-|---|---|---|
-| `mastodon/*`, `html.rs`, `template.rs`, `text.rs`, `timeline.rs`, `clock.rs`, `read_position.rs` | none / little | move as-is |
-| `network.rs` | `wx_utils::tasks` background queue | expose plain blocking fns; the scheduling stays in the UI layer |
-| `auth.rs` | `wxdragon` browser launch + localhost listener | keep `register_app` / `build_authorize_url` / `exchange_token`. iOS uses `ASWebAuthenticationSession` + a custom URL scheme |
-| `responses/*` | `live_region.announce(...)` | return outcome values/events; the UI decides what to announce |
-| `accounts.rs`, `notifications.rs`, `audio.rs`, `speech/*` | wx / rodio / OS | stay in the Windows app, not in the core |
-| `config.rs` (1.6k lines) | mixes data with Windows hotkeys | split: data types → core, shortcut/UI config stays |
-| `streaming.rs` | tungstenite | move to the core; check that it works on iOS (TLS roots) |
+| Goes into `fedra-core` | How |
+|---|---|
+| `mastodon/*` (client + models), `html.rs`, `text.rs`, `template.rs`, `clock.rs` | move as-is |
+| `streaming.rs` | move. Replace the `UiWaker` (wxDragon) with a plain `Fn() + Send` callback that the app passes in |
+| Settings enums from `config.rs` (`TimestampFormat`, `DisplayNameEmojiMode`, `ContentWarningDisplay`, `SortOrder`, `TimelineFilter`) | move into `core::settings`. `config.rs` re-exports them, and `Config` with its hotkeys stays in the app |
+| `TimelineType` from `timeline.rs` | move. The rest of `timeline.rs` (timeline state, stream handles, find) stays in the app |
+| Request types from `network.rs` (`PostData`, `MediaUpload`, `PollData`, `RelationshipAction`, ...) | move. The `wx_utils` background queue stays in the app |
+
+| Stays in the Windows app | Why |
+|---|---|
+| `responses/*`, `read_position.rs`, `accounts.rs`, `notifications.rs` | app controller code: depends on `AppState`, `UiCommand`, `ui` |
+| `auth.rs` | browser + localhost listener. The OAuth calls themselves are already in `mastodon/client/auth.rs` (core); iOS uses `ASWebAuthenticationSession` |
+| `audio.rs`, `speech/*`, `ui/*`, `ui_wake.rs`, `main.rs` | UI / OS |
+
+**Minimal-diff technique:** `main.rs` replaces `mod mastodon;` with `use fedra_core::mastodon;`
+(same for the other moved modules), so every existing `crate::mastodon::...` path in the
+app keeps compiling unchanged. That keeps the fork's diff small and rebases cheap.
 
 ## Milestones
 
@@ -48,7 +57,7 @@ Upstream is **one binary crate**. No library exists yet. UI coupling found outsi
 - [x] `.gitignore`, `.gitattributes`, `.editorconfig`
 - [x] `FedraKit` Swift package skeleton (`FedraModel`), `swift test` green on Windows
 - [x] `project.yml` (XcodeGen) with a placeholder SwiftUI app, bundle ID
-- [ ] CI green: Linux `swift test` + macOS unsigned simulator build
+- [x] CI green: Linux `swift test` + macOS unsigned simulator build
 - [ ] App Store Connect app record + TestFlight via apple-ci (needs you: create the app in App Store Connect)
 
 ### M1 – Extract `fedra-core` (in the fork)
