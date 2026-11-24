@@ -1,0 +1,48 @@
+name: CI
+
+# M0: tests on Linux (1x billing) and an unsigned simulator build on macOS.
+# Signing and TestFlight come once the app has an App Store Connect record
+# (see the GitHub issues). The Rust core joins this workflow in M2.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fedramodel-linux:
+    name: FedraModel tests (Linux)
+    # Also proves FedraModel builds without Apple frameworks.
+    runs-on: ubuntu-latest
+    container: swift:6.4.0-noble
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build and test
+        working-directory: FedraKit
+        run: swift build && swift test
+
+  ios-build:
+    name: iOS build (simulator, unsigned)
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+      - name: Generate project
+        run: brew install xcodegen && xcodegen generate
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Fedra.xcodeproj \
+            -scheme Fedra \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO | xcbeautify

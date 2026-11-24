@@ -1,0 +1,16 @@
+# Authored on Windows, built on Unix CI runners. Force LF on everything a runner
+# reads: CRLF in a run block breaks heredoc terminators in ways that don't look
+# like a line-ending problem.
+* text=auto
+
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.sh    text eol=lf
+*.swift text eol=lf
+*.rs    text eol=lf
+*.toml  text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.wav   binary
+*.ogg   binary
+*.png   binary

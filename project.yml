@@ -1,0 +1,86 @@
+# Source of truth for the Xcode project. XcodeGen (`xcodegen generate`) builds
+# the .xcodeproj and App/Info.plist from this file. Neither is committed: there
+# is no Mac in this workflow, so CI is the only machine that generates them.
+# Edit this file, never the generated output.
+name: Fedra
+
+options:
+  bundleIdPrefix: com.jonathan859
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+  groupSortPosition: top
+
+packages:
+  FedraKit:
+    path: FedraKit
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+targets:
+  Fedra:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+        excludes:
+          - Info.plist
+    dependencies:
+      - package: FedraKit
+        product: FedraModel
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jonathan859.fedra
+        PRODUCT_NAME: Fedra
+        # iPhone + iPad (PLAN.md decisions).
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: App/Info.plist
+        # A11Y: system blue is ~4:1 on white, below WCAG AA's 4.5:1. AccentColor
+        # uses Apple's Increase Contrast blues: #0040DD light, #409CFF dark.
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    info:
+      path: App/Info.plist
+      properties:
+        # Working name; the public name is decided before App Store (M10).
+        CFBundleDisplayName: Fedra
+        # XcodeGen does not map these build settings into the plist by itself.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen:
+          UIColorName: ""
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIApplicationSupportsIndirectInputEvents: true
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: true
+        # Only HTTPS via standard TLS: exempt, saves the question on every upload.
+        ITSAppUsesNonExemptEncryption: false
+
+schemes:
+  Fedra:
+    build:
+      targets:
+        Fedra: all
+    run:
+      config: Debug
+    archive:
+      config: Release
